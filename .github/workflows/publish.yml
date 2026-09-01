@@ -1,0 +1,228 @@
+# Publishes ONE font module to Maven Central, off a tag, and drafts the GitHub release.
+#
+# Releases here are per module, because that is this repository's whole reason to exist: a
+# font's version belongs to the font, and bumping the emoji pin must not re-upload the 16 MB
+# pan-CJK face that did not change. The tag carries both halves of the decision:
+#
+#   noto-cjk/v2.004.0        publishes limn-fonts-noto-cjk 2.004.0, and nothing else
+#   noto-emoji/v2.051.0      publishes limn-fonts-noto-emoji 2.051.0
+#   noto-scripts/v1.0.0      publishes limn-fonts-noto-scripts 1.0.0
+#
+# The version comes from the tag and from nowhere else: build.gradle.kts reads -PlimnFontsVersion
+# and otherwise says -SNAPSHOT, so the tag is what makes a version exist. Nothing in the tree
+# carries one.
+#
+# Neither half of a release publishes itself. The upload STOPS at the Portal, where it sits as a
+# staged deployment until somebody presses Publish; the GitHub release is created as a DRAFT.
+# Central keeps what it accepts — a wrong artifact cannot be replaced, only superseded by a
+# version number nobody wanted to spend — so the last reversible moment is kept manual.
+#
+# Secrets this needs (repository settings → Secrets and variables → Actions):
+#
+#   MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD   the Portal USER TOKEN, not the login
+#   SIGNING_KEY                                       `gpg --armor --export-secret-keys <id>`,
+#                                                     BEGIN/END lines included
+#   SIGNING_PASSWORD                                  that key's passphrase
+#
+# The public half of the key has to be on a public keyserver before this runs: Central verifies
+# the signature against one, and a key it cannot find fails validation after the upload.
+
+name: publish
+
+on:
+  push:
+    tags:
+      - "noto-cjk/v*"
+      - "noto-emoji/v*"
+      - "noto-scripts/v*"
+  # For a re-run of a release whose upload failed after the tag already existed. It is not a way
+  # to release something untagged: the tag is verified below, in both paths.
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Module to publish (without the limn-fonts- prefix)"
+        required: true
+        type: choice
+        options: [noto-cjk, noto-emoji, noto-scripts]
+      version:
+        description: "Version to publish, without the leading v (e.g. 2.004.0)"
+        required: true
+        type: string
+      force:
+        description: "Upload again even though this version was already uploaded once"
+        required: false
+        default: false
+        type: boolean
+
+# Read-only for the workflow, widened per JOB: the job that holds the credentials gets nothing
+# to write; the job that writes gets no credentials and no code.
+permissions:
+  contents: read
+
+# One release of one module at a time. Two MODULES releasing concurrently would be harmless —
+# different deployments on the Portal — so the group is the tag, not the workflow: what must not
+# race is two uploads of the same version.
+concurrency:
+  group: publish-${{ inputs.module || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # To ask what this workflow has already done with this tag; see the last step.
+      actions: read
+    outputs:
+      module: ${{ steps.target.outputs.module }}
+      version: ${{ steps.target.outputs.version }}
+    steps:
+      # Full depth, for the tag check below: a shallow clone has the tag object without the
+      # commit it points at, which cannot be compared to anything.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The module and the version, from the tag or from the dispatch inputs. Rejected here
+      # rather than by Gradle if either is not what it should be: the tag is a human's typing.
+      - name: Resolve the module and the version
+        id: target
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            MODULE="${{ inputs.module }}"
+            VERSION="${{ inputs.version }}"
+          else
+            MODULE="${GITHUB_REF_NAME%%/*}"
+            VERSION="${GITHUB_REF_NAME#*/v}"
+          fi
+          case "$MODULE" in
+            noto-cjk|noto-emoji|noto-scripts) ;;
+            *) echo "::error::'$MODULE' is not a module here"; exit 1 ;;
+          esac
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)[0-9]+)?$'; then
+            echo "::error::'$VERSION' is not a release version (expected 2.004.0, or 1.2.3-rc1)"
+            exit 1
+          fi
+          echo "module=$MODULE" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "publishing limn-fonts-$MODULE $VERSION"
+
+      # Every published version is a tag, made true rather than customary. On a tag push it
+      # passes by construction; on a dispatch it is the whole point.
+      - name: Verify the tag
+        run: |
+          TAG="${{ steps.target.outputs.module }}/v${{ steps.target.outputs.version }}"
+          if ! git rev-parse -q --verify "refs/tags/$TAG^{commit}" >/dev/null; then
+            echo "::error::$TAG does not exist. Tag the commit you mean to release first."
+            exit 1
+          fi
+          TAGGED="$(git rev-parse "$TAG^{commit}")"
+          if [ "$TAGGED" != "$GITHUB_SHA" ]; then
+            echo "::error::$TAG points at $TAGGED, not at the commit being built ($GITHUB_SHA)"
+            exit 1
+          fi
+          echo "$TAG is $TAGGED"
+
+      # A font is a binary nobody reviews in a diff; the digest list in fetch-fonts.sh is the
+      # review, and this is where it happens before an upload.
+      - name: The committed faces must match their pins
+        run: bash scripts/fetch-fonts.sh --check
+
+      # One upload per version, enforced rather than assumed. A SUCCESSFUL earlier run is the
+      # signal, so a re-run after a failure still works; deliberately replacing an upload —
+      # after dropping its deployment on the Portal — is what `force` is for.
+      - name: Refuse a second upload of the same version
+        if: ${{ !inputs.force }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.target.outputs.module }}/v${{ steps.target.outputs.version }}
+        run: |
+          PRIOR="$(gh run list --workflow publish.yml --branch "$TAG" --status success \
+                     --limit 20 --json url --jq '.[0].url // empty')"
+          if [ -n "$PRIOR" ]; then
+            echo "::error::$TAG has already been uploaded, by $PRIOR. Nothing was sent this time."
+            echo "::error::If that deployment was dropped on the Portal and you mean to replace it, re-run this workflow from the Actions tab with 'force' ticked."
+            exit 1
+          fi
+          echo "no successful publish run for $TAG yet"
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # `check` before the upload (it re-verifies the pins through the verifyFonts task), then
+      # the upload of the ONE module the tag named. ORG_GRADLE_PROJECT_<name> is how a Gradle
+      # property arrives from an environment, which keeps every secret out of the command line.
+      - name: Publish to Maven Central
+        run: >-
+          ./gradlew
+          :limn-fonts-${{ needs.verify.outputs.module }}:check
+          :limn-fonts-${{ needs.verify.outputs.module }}:publishToMavenCentral
+          -PlimnFontsVersion=${{ needs.verify.outputs.version }}
+          --no-daemon
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+
+  # The only job that can write to the repository, and deliberately the smallest: no checkout,
+  # no build, no secrets — it cannot run anything the tag brought with it.
+  draft-release:
+    needs: [verify, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Draft the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MODULE: ${{ needs.verify.outputs.module }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          TAG="$MODULE/v$VERSION"
+          # A re-run after a failed upload finds its own draft from the first attempt. Editing
+          # it would overwrite notes somebody may have already written by hand.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "a release already exists for $TAG; leaving it untouched"
+            exit 0
+          fi
+          gh release create "$TAG" \
+            --draft \
+            --title "limn-fonts-$MODULE $VERSION" \
+            --notes "$(cat <<NOTES
+          Published to Maven Central. This release is **limn-fonts-$MODULE only**; the other
+          faces keep their own versions.
+
+          \`\`\`kotlin
+          dependencies {
+              runtimeOnly("io.github.limn-toolkit:limn-fonts-$MODULE:$VERSION")
+          }
+          \`\`\`
+
+          The jar is resources and a licence: Limn's FontStore finds the faces on the classpath
+          and needs no code from here.
+          NOTES
+          )"
+          echo "### Drafted $TAG" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Two things are staged and neither is public yet:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "1. The deployment on <https://central.sonatype.com/publishing/deployments> — inspect it, then **Publish** (or **Drop**)." >> "$GITHUB_STEP_SUMMARY"
+          echo "2. The draft release on <https://github.com/$GH_REPO/releases> — edit the notes, then publish it." >> "$GITHUB_STEP_SUMMARY"
