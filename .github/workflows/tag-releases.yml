@@ -1,0 +1,71 @@
+# Turns versions.properties into tags, on every push to main, so nobody types a tag name and
+# nobody pushes one either: the file is the decision, and landing it on main is what enacts it.
+#
+# For every entry `<module>=<version>` whose tag `<module>/v<version>` is not on origin, this
+# creates the tag at the pushed commit and starts that module's publish run. Entries already
+# tagged are left alone, so the workflow is idempotent and runs harmlessly on every push.
+#
+# The publish run is started EXPLICITLY rather than by the tag: a ref pushed with the
+# workflow's own GITHUB_TOKEN does not trigger other workflows (GitHub's recursion guard), and
+# workflow_dispatch is the documented exception that does. The tag still matters — publish's
+# verify job refuses a version whose tag does not exist or points elsewhere — this workflow
+# just makes the tag and the dispatch the same motion.
+#
+# What stays human: pressing Publish on the Central Portal, and publishing the drafted GitHub
+# release. The upload stops staged, exactly as a hand-made tag's would.
+
+name: tag-releases
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: tag-releases
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Tag what versions.properties asks for, and start each publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          created=0
+          while IFS='=' read -r module version; do
+            case "$module" in ''|\#*) continue ;; esac
+            module="$(printf '%s' "$module" | tr -d '[:space:]')"
+            version="$(printf '%s' "$version" | tr -d '[:space:]')"
+            tag="$module/v$version"
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+              echo "· $tag already on origin"
+              continue
+            fi
+            git tag -a "$tag" -m "limn-fonts-$module $version"
+            git push origin "refs/tags/$tag"
+            gh workflow run publish.yml --ref "$tag" -f module="$module" -f version="$version"
+            echo "✚ $tag created at $GITHUB_SHA; publish dispatched"
+            created=$((created + 1))
+          done < versions.properties
+          if [ "$created" -eq 0 ]; then
+            echo "nothing to tag: every version in versions.properties is already tagged"
+          else
+            {
+              echo "### Tagged and dispatched $created release(s)"
+              echo ""
+              echo "Each publish stages a deployment on <https://central.sonatype.com/publishing/deployments> and drafts a GitHub release; both wait for a human."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

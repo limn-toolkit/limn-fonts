@@ -1,11 +1,12 @@
 # Releasing
 
 Releases here are **per module**, from a tag named `<module>/v<version>` — and the tag is
-derived, never typed. `versions.properties` is the single place a version is written; the build
-reads it for every module's `-SNAPSHOT` default, and `scripts/tag-releases.sh` reads it to
-create whatever tags do not exist yet. The tree carries no release version anywhere else:
-`build.gradle.kts` reads `-PlimnFontsVersion` (which the publish workflow takes from the tag)
-and otherwise says `-SNAPSHOT`.
+derived, never typed and never pushed by hand. `versions.properties` is the single place a
+version is written; the build reads it for every module's `-SNAPSHOT` default, and on every
+push to main the `tag-releases` workflow reads it to create whatever tags do not exist yet and
+start their publishes. Landing a bumped entry on main IS the release decision. The tree carries
+no release version anywhere else: `build.gradle.kts` reads `-PlimnFontsVersion` (which the
+publish workflow takes from the tag or the dispatch) and otherwise says `-SNAPSHOT`.
 
 The version scheme: the first two components mirror the upstream release the pin points at
 (Noto CJK `Sans2.004` → `2.004.x`), and the third is this repository's own — repackaging the
@@ -26,10 +27,9 @@ human pressing Publish.
    ./gradlew :limn-fonts-noto-cjk:publishAllPublicationsToBuildDirRepository -PlimnFontsVersion=2.004.1
    ```
    With the signing key configured, every artifact under `build/repo` gets an `.asc` beside it.
-3. **Run `./scripts/tag-releases.sh`.** It tags what needs tagging (annotated, at HEAD), tells
-   you what it created, and is idempotent — versions already tagged are left alone.
-4. **Push, with the tags.** Each new tag triggers one `publish` run, which re-verifies the pins,
-   uploads that one module's signed bundle, and drafts the GitHub release.
+3. **Push main.** The `tag-releases` workflow tags what needs tagging at the pushed commit —
+   entries already tagged are left alone — and starts one `publish` run per new tag, which
+   re-verifies the pins, uploads that one module's signed bundle, and drafts the GitHub release.
 5. **Inspect the deployment** on <https://central.sonatype.com/publishing/deployments> — the
    last reversible moment: **Drop** discards it and costs nothing.
 6. **Publish it**, then publish the draft GitHub release.
@@ -39,10 +39,15 @@ human pressing Publish.
 
 ## When something goes wrong
 
-Same rules as the main repository: a failed build after the tag can be fixed and re-tagged
-(`git tag -f`, force-push the tag) as long as nothing was published under it; a wrong staged
-deployment is Dropped and costs nothing; a wrong PUBLISHED version stays published and is
-superseded by the next number.
+**The publish failed after its tag was created.** Land the fix on main and delete the tag on
+the web UI (repository → Tags → the tag's ⋯ menu) — the next push to main recreates it at the
+fixed commit and starts publish again. Alternatively, re-run `publish` from the Actions tab
+(module picked from the list, version left blank) if the tag itself is fine and only the upload
+hiccuped. Once a version is published on Central its tag is frozen: publish the fix as the next
+number.
+
+**A wrong staged deployment** is Dropped on the Portal and costs nothing. **A wrong PUBLISHED
+version** stays published and is superseded by the next number; there is no other move.
 
 ## Secrets
 

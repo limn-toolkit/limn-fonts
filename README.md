@@ -48,7 +48,7 @@ binary cannot have.
 
 ## Releasing
 
-Per module, from a tag named `<module>/v<version>` — and nobody types one:
-[`versions.properties`](versions.properties) is the single place a version is written, and
-[`scripts/tag-releases.sh`](scripts/tag-releases.sh) turns it into whatever tags do not exist
-yet. See [RELEASING.md](RELEASING.md).
+Per module, from a tag named `<module>/v<version>` — and nobody types or pushes one:
+[`versions.properties`](versions.properties) is the single place a version is written, and on
+every push to main the [`tag-releases`](.github/workflows/tag-releases.yml) workflow creates
+whatever tags do not exist yet and starts their publishes. See [RELEASING.md](RELEASING.md).
