@@ -46,8 +46,8 @@ on:
         type: choice
         options: [roboto, noto-cjk, noto-emoji, noto-scripts]
       version:
-        description: "Version to publish, without the leading v (e.g. 2.004.0)"
-        required: true
+        description: "Version to publish, without the leading v. Blank takes the module's entry in versions.properties — the same answer scripts/tag-releases.sh would give."
+        required: false
         type: string
       force:
         description: "Upload again even though this version was already uploaded once"
@@ -87,12 +87,24 @@ jobs:
 
       # The module and the version, from the tag or from the dispatch inputs. Rejected here
       # rather than by Gradle if either is not what it should be: the tag is a human's typing.
+      # A dispatch with the version left blank reads versions.properties, the same single
+      # source the build and tag-releases.sh read — the field exists only for re-running an
+      # OLD version whose entry has already moved on.
       - name: Resolve the module and the version
         id: target
         run: |
-          if [ -n "${{ inputs.version }}" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             MODULE="${{ inputs.module }}"
             VERSION="${{ inputs.version }}"
+            if [ -z "$VERSION" ]; then
+              VERSION="$(grep -E "^${MODULE}[[:space:]]*=" versions.properties | head -1 \
+                           | cut -d= -f2 | tr -d '[:space:]')"
+              if [ -z "$VERSION" ]; then
+                echo "::error::'$MODULE' has no entry in versions.properties"
+                exit 1
+              fi
+              echo "version left blank; versions.properties says $MODULE=$VERSION"
+            fi
           else
             MODULE="${GITHUB_REF_NAME%%/*}"
             VERSION="${GITHUB_REF_NAME#*/v}"
