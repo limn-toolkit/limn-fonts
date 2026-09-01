@@ -26,3 +26,19 @@ jobs:
 
       - name: Gradle check and assemble
         run: ./gradlew check assemble
+
+      # What a release would publish, checked for the mistake the first four releases shipped:
+      # module metadata whose minimum-JVM attribute followed the build's toolchain (21) onto
+      # jars that carry no bytecode, refusing every consumer building for an older Java at
+      # resolution time. The honest answer for a jar of fonts is 8, and this fails if any
+      # variant of any module says otherwise.
+      - name: The metadata must not demand a JVM the jars do not need
+        run: |
+          ./gradlew publishAllPublicationsToBuildDirRepository
+          BAD="$(grep -rho '"org.gradle.jvm.version": [0-9]*' build/repo --include="*.module" \
+                   | sort -u | grep -v ': 8$' || true)"
+          if [ -n "$BAD" ]; then
+            echo "::error::a published variant declares a minimum JVM other than 8: $BAD"
+            exit 1
+          fi
+          echo "every variant declares JVM 8"

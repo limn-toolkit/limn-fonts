@@ -81,6 +81,19 @@ subprojects {
         withSourcesJar()
     }
 
+    // A resources-only jar runs on ANY Java, and this is what says so where consumers listen.
+    //
+    // Without it, the published Gradle module metadata takes its minimum-JVM attribute from the
+    // toolchain above, and the first four versions this repository released declared "requires
+    // Java 21" on jars that contain no bytecode at all: a consumer building for Java 17 —
+    // limn-toolkit itself, whose artifacts target 17 — was refused at resolution time with
+    // "only compatible with JVM runtime version 21 or newer". The toolchain pins which JDK RUNS
+    // the build; what the artifact requires is a different sentence, and for a jar of fonts the
+    // honest answer is the lowest thing Gradle will write.
+    tasks.withType<JavaCompile>().configureEach {
+        options.release.set(8)
+    }
+
     // The faces are vendored binaries, and a sources jar is not where a binary belongs: it
     // answers "what was this built from", and the licence text is the whole part of this module
     // that has an answer. Same trade, same reasoning, as the toolkit's backend made when the
