@@ -7,8 +7,10 @@ dependencyResolutionManagement {
     }
 }
 
-// One module per fallback font, because they release APART — that is this repository's whole
-// reason to exist. A face here changes only when its upstream pin moves, so its artifact keeps
+// One module per font, because they release APART — that is this repository's whole reason to
+// exist. Three are fallbacks an application opts in to; roboto is the toolkit's default UI
+// family, which the LWJGL backend REQUIRES and therefore declares as a real dependency — it
+// rides here all the same, because its bytes are as stable as any other face's. A face here changes only when its upstream pin moves, so its artifact keeps
 // one version for as long as the bytes do, and an application's cache keeps the 16 MB pan-CJK
 // jar across every Limn release that names the same font version. A single module would tie the
 // three back together: bumping the emoji pin would re-version 27 MB of faces that did not change.
@@ -19,6 +21,7 @@ dependencyResolutionManagement {
 // (limn-fonts-all), versioned with the toolkit, because "which font versions this Limn was
 // tested with" is a fact about the toolkit, not about the fonts.
 include(
+    "limn-fonts-roboto",
     "limn-fonts-noto-cjk",
     "limn-fonts-noto-emoji",
     "limn-fonts-noto-scripts",

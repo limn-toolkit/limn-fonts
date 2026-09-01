@@ -32,6 +32,7 @@ name: publish
 on:
   push:
     tags:
+      - "roboto/v*"
       - "noto-cjk/v*"
       - "noto-emoji/v*"
       - "noto-scripts/v*"
@@ -43,7 +44,7 @@ on:
         description: "Module to publish (without the limn-fonts- prefix)"
         required: true
         type: choice
-        options: [noto-cjk, noto-emoji, noto-scripts]
+        options: [roboto, noto-cjk, noto-emoji, noto-scripts]
       version:
         description: "Version to publish, without the leading v (e.g. 2.004.0)"
         required: true
@@ -97,7 +98,7 @@ jobs:
             VERSION="${GITHUB_REF_NAME#*/v}"
           fi
           case "$MODULE" in
-            noto-cjk|noto-emoji|noto-scripts) ;;
+            roboto|noto-cjk|noto-emoji|noto-scripts) ;;
             *) echo "::error::'$MODULE' is not a module here"; exit 1 ;;
           esac
           if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)[0-9]+)?$'; then

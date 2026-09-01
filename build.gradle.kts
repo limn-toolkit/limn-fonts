@@ -26,28 +26,29 @@ plugins {
     alias(libs.plugins.central.publish) apply false
 }
 
-// Per-module: the version a dev build carries, and the one line of the POM that is not shared.
-//
-// The defaults track the upstream release each pin in scripts/fetch-fonts.sh points at
-// (CJK tag Sans2.004, emoji tag v2.051), written with a third component so a rebuild of an
-// unchanged upstream has a number to spend: repackaging Sans2.004 twice is 2.004.0 and 2.004.1.
-// noto-scripts aggregates four families pinned to one notofonts.github.io commit, which has no
-// single upstream number, so it versions itself plainly from 1.0.0.
+// What each module says in its POM. Its VERSION is not here: versions live in
+// versions.properties, the one file both this build and scripts/tag-releases.sh read, so the
+// number a dev build defaults to and the number the next tag carries cannot disagree.
 val fontModules = mapOf(
-    "limn-fonts-noto-cjk" to Pair(
-        "2.004.0",
-        "Noto Sans CJK Regular (pan-CJK: Han, Kana, Hangul) as a Limn fallback face. " +
-                "Resources only; the toolkit's FontStore picks it up from the classpath."),
-    "limn-fonts-noto-emoji" to Pair(
-        "2.051.0",
-        "Noto Color Emoji (CBDT colour bitmaps) as a Limn fallback face. " +
-                "Resources only; the toolkit's FontStore picks it up from the classpath."),
-    "limn-fonts-noto-scripts" to Pair(
-        "1.0.0",
-        "Noto Sans Arabic, Hebrew, Devanagari and Thai, Regular and Bold, as Limn fallback " +
-                "faces for the complex scripts. Resources only; the toolkit's FontStore picks " +
-                "them up from the classpath."),
+    "limn-fonts-roboto" to
+            "Roboto Regular, Bold, Italic and Bold-Italic — the Limn toolkit's default UI " +
+            "family and last-resort fallback. Resources only; the toolkit's FontStore picks " +
+            "them up from the classpath, and the LWJGL backend requires this artifact.",
+    "limn-fonts-noto-cjk" to
+            "Noto Sans CJK Regular (pan-CJK: Han, Kana, Hangul) as a Limn fallback face. " +
+            "Resources only; the toolkit's FontStore picks it up from the classpath.",
+    "limn-fonts-noto-emoji" to
+            "Noto Color Emoji (CBDT colour bitmaps) as a Limn fallback face. " +
+            "Resources only; the toolkit's FontStore picks it up from the classpath.",
+    "limn-fonts-noto-scripts" to
+            "Noto Sans Arabic, Hebrew, Devanagari and Thai, Regular and Bold, as Limn fallback " +
+            "faces for the complex scripts. Resources only; the toolkit's FontStore picks " +
+            "them up from the classpath.",
 )
+
+val moduleVersions = java.util.Properties().apply {
+    file("versions.properties").inputStream().use { load(it) }
+}
 
 allprojects {
     group = "io.github.limn-toolkit"
@@ -63,8 +64,10 @@ val verifyFonts = tasks.register<Exec>("verifyFonts") {
 }
 
 subprojects {
-    val (defaultVersion, moduleDescription) = fontModules[name]
+    val moduleDescription = fontModules[name]
         ?: throw GradleException("module '$name' is not in fontModules; add it beside the others")
+    val defaultVersion = moduleVersions.getProperty(name.removePrefix("limn-fonts-"))
+        ?: throw GradleException("module '$name' has no entry in versions.properties")
 
     version = (findProperty("limnFontsVersion") as String?) ?: "$defaultVersion-SNAPSHOT"
 
@@ -112,14 +115,19 @@ subprojects {
                 connection.set("scm:git:https://github.com/limn-toolkit/limn-fonts.git")
                 developerConnection.set("scm:git:ssh://git@github.com/limn-toolkit/limn-fonts.git")
             }
-            // The licence of the CONTENT, not of this build script: everything inside the jar is
-            // a font and its licence text, and every face here is under the SIL OFL 1.1. The
-            // repository's own few build files are Apache 2.0 (see LICENSE), and none of them
-            // is in any artifact.
+            // The licence of the CONTENT, not of this build script: everything inside a jar is
+            // a font and its licence text, so each POM names its font's licence — Apache 2.0
+            // for Roboto, SIL OFL 1.1 for every Noto face. The repository's own few build files
+            // are Apache 2.0 (see LICENSE), and none of them is in any artifact.
             licenses {
                 license {
-                    name.set("SIL Open Font License, Version 1.1")
-                    url.set("https://openfontlicense.org/open-font-license-official-text/")
+                    if (this@subprojects.name == "limn-fonts-roboto") {
+                        name.set("The Apache License, Version 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                    } else {
+                        name.set("SIL Open Font License, Version 1.1")
+                        url.set("https://openfontlicense.org/open-font-license-official-text/")
+                    }
                 }
             }
             developers {

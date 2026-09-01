@@ -20,6 +20,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROBOTO="limn-fonts-roboto/src/main/resources/limn/fonts"
 CJK="limn-fonts-noto-cjk/src/main/resources/limn/fonts"
 EMOJI="limn-fonts-noto-emoji/src/main/resources/limn/fonts"
 SCRIPTS="limn-fonts-noto-scripts/src/main/resources/limn/fonts"
@@ -27,6 +28,20 @@ MODE="${1:-}"
 
 # name | destination path, relative to the repository root | URL (pinned commit) | SHA-256
 FONTS=(
+  # Roboto is pinned to the limn-toolkit repository at an immutable commit, because that is the
+  # oldest URL these exact bytes are known to live at: the four faces were vendored there from
+  # the project's first commit, before this repository existed. Their provenance, as far as it
+  # can be established: Roboto-Regular is BYTE-IDENTICAL to Roboto-Regular.ttf in
+  # googlefonts/roboto's v2.138 release, roboto-unhinted.zip (verified 2026-09-01; that file
+  # lives inside a zip asset, which this script cannot pin directly). Bold, Italic and
+  # Bold-Italic name themselves "Version 2.001047; 2015" — the classic Google static build —
+  # and no single-file upstream URL byte-matching them was found. If upstream ever republishes
+  # them as plain files, move these pins there; until then, this pin is still commit + digest,
+  # and the digests below are the review.
+  "Roboto Regular (== googlefonts/roboto v2.138 unhinted)|$ROBOTO/Roboto-Regular.ttf|https://raw.githubusercontent.com/limn-toolkit/limn-toolkit/0c3ff58d8be1ef83deeee74c88373983e6c55d35/limn-backend-lwjgl/src/main/resources/limn/backend/lwjgl/fonts/Roboto-Regular.ttf|f3edb8058e523f5612bfd99d0745e661568ad85e1b6217bc62f786fabae624c6"
+  "Roboto Bold (name table: Version 2.001047; 2015)|$ROBOTO/Roboto-Bold.ttf|https://raw.githubusercontent.com/limn-toolkit/limn-toolkit/0c3ff58d8be1ef83deeee74c88373983e6c55d35/limn-backend-lwjgl/src/main/resources/limn/backend/lwjgl/fonts/Roboto-Bold.ttf|61f89f8db49261c2f6106e8dccc35df7b2f7ed909020db40a3fc905e95f99334"
+  "Roboto Italic (name table: Version 2.001047; 2015)|$ROBOTO/Roboto-Italic.ttf|https://raw.githubusercontent.com/limn-toolkit/limn-toolkit/0c3ff58d8be1ef83deeee74c88373983e6c55d35/limn-backend-lwjgl/src/main/resources/limn/backend/lwjgl/fonts/Roboto-Italic.ttf|fa0b17bb4aaac4a1b2ee149dd4ca3b55e97d3077aa6ba9bb02541b316e7c46ce"
+  "Roboto Bold Italic (name table: Version 2.001047; 2015)|$ROBOTO/Roboto-BoldItalic.ttf|https://raw.githubusercontent.com/limn-toolkit/limn-toolkit/0c3ff58d8be1ef83deeee74c88373983e6c55d35/limn-backend-lwjgl/src/main/resources/limn/backend/lwjgl/fonts/Roboto-BoldItalic.ttf|40083ed54338397cf49d2c49f59eddcd963a30fdb301813d4bd3abbb37a13d12"
   "Noto Sans CJK (pan-CJK: Han + Kana + Hangul + Latin/Greek/Cyrillic), tag Sans2.004|$CJK/NotoSansCJK-Regular.otf|https://raw.githubusercontent.com/notofonts/noto-cjk/523d033d6cb47f4a80c58a35753646f5c3608a78/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf|68a3fc98800b2a27b371f2fb79991daf3633bd89309d4ffaa6946fd587f375b5"
   "Noto Color Emoji (CBDT color bitmaps), tag v2.051|$EMOJI/NotoColorEmoji.ttf|https://raw.githubusercontent.com/googlefonts/noto-emoji/8998f5dd683424a73e2314a8c1f1e359c19e8742/fonts/NotoColorEmoji.ttf|72a635cb3d2f3524c51620cdde406b217204e8a6a06c6a096ff8ed4b5fd6e27b"
   # The four complex scripts, from notofonts.github.io at one pinned commit, Regular and Bold
