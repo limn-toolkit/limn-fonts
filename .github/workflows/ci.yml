@@ -2,10 +2,30 @@
 # assembles the jars a release would ship. Cheap on purpose — nothing here compiles.
 name: ci
 
+# Only when something this workflow actually tests can have changed: a face, its pin, the
+# packaging. A push that touches the README, RELEASING or the release workflows runs nothing.
 on:
   push:
     branches: [main]
+    paths:
+      - "limn-fonts-*/**"
+      - "scripts/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "gradle.properties"
+      - "versions.properties"
+      - ".github/workflows/ci.yml"
   pull_request:
+    paths:
+      - "limn-fonts-*/**"
+      - "scripts/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "gradle.properties"
+      - "versions.properties"
+      - ".github/workflows/ci.yml"
 
 permissions:
   contents: read
