@@ -106,6 +106,19 @@ subprojects {
         dependsOn(verifyFonts)
     }
 
+    // A module name, so an application on the module path can have these jars resolved rather
+    // than invisible: nothing requires a resource jar with no name, so the JVM never loads it,
+    // and the backend then stops because Roboto is missing. With a name, limn-backend-lwjgl
+    // requires limn.fonts.roboto, and resolving one automatic module resolves every other one on
+    // the path, which brings the opt-in faces too (measured on limn-toolkit's module-path
+    // rehearsal, 2026-09-22). The faces stay where they were; an automatic module takes its
+    // packages from its classes, and these jars have none, so four jars sharing limn/fonts/ do
+    // not collide.
+    val automaticModuleName = project.name.replace('-', '.')
+    tasks.named<Jar>("jar") {
+        manifest { attributes("Automatic-Module-Name" to automaticModuleName) }
+    }
+
     extensions.configure<MavenPublishBaseExtension> {
         // Uploads and stops: the deployment sits staged on the Central Portal until somebody
         // presses Publish, which is the last moment a release can still be dropped.

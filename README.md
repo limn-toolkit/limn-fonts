@@ -24,7 +24,9 @@ The repository's own few build files are Apache 2.0 (`LICENSE`).
 A jar here is resources and a licence — no code, no dependencies. Limn's `FontStore` finds the
 faces on the classpath (under `limn/fonts/`) and degrades gracefully when a fallback is absent,
 so an application opts in per fallback face and pays only for what it wants (Roboto needs no
-line: it comes with `limn-backend-lwjgl`):
+line: it comes with `limn-backend-lwjgl`). Each jar names itself as a module (`limn.fonts.roboto`,
+`limn.fonts.noto.cjk`, …), so on the module path the backend's `requires limn.fonts.roboto` loads
+it, and loading one loads every other font jar on the path:
 
 ```kotlin
 dependencies {
