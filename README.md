@@ -8,7 +8,7 @@ pan-CJK that has not changed is never re-downloaded because something else did.
 | --- | --- | --- | --- |
 | `limn-fonts-roboto` | Latin, Greek, Cyrillic — the toolkit's default UI family, Regular/Bold/Italic/Bold-Italic | ~1.9 MB | its own `1.x` (mixed upstream builds; see the pins) |
 | `limn-fonts-noto-cjk` | Han + Kana + Hangul (Noto Sans CJK Regular) | ~16 MB | upstream `Sans2.004` → `2.004.x` |
-| `limn-fonts-noto-emoji` | Emoji, in colour (Noto Color Emoji) | ~10 MB | upstream `v2.051` → `2.051.x` |
+| `limn-fonts-noto-emoji` | Emoji, in colour (Noto Color Emoji) | ~10 MB | upstream `v2.057` → `2.057.x` |
 | `limn-fonts-noto-scripts` | Arabic, Hebrew, Devanagari, Thai — Regular + Bold | ~1.1 MB | its own `1.x` (four families, one pinned upstream commit) |
 
 `limn-fonts-roboto` is the one that is **not** an opt-in: it backs `Font.DEFAULT_FAMILY` and the
@@ -30,9 +30,9 @@ it, and loading one loads every other font jar on the path:
 
 ```kotlin
 dependencies {
-    runtimeOnly("io.github.limn-toolkit:limn-fonts-noto-cjk:2.004.0")
-    runtimeOnly("io.github.limn-toolkit:limn-fonts-noto-emoji:2.051.0")
-    runtimeOnly("io.github.limn-toolkit:limn-fonts-noto-scripts:1.0.0")
+    runtimeOnly("io.github.limn-toolkit:limn-fonts-noto-cjk:2.004.2")
+    runtimeOnly("io.github.limn-toolkit:limn-fonts-noto-emoji:2.057.0")
+    runtimeOnly("io.github.limn-toolkit:limn-fonts-noto-scripts:1.0.3")
 }
 ```
 
