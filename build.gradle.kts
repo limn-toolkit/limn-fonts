@@ -158,9 +158,10 @@ subprojects {
             }
             developers {
                 developer {
-                    id.set("dyorgio")
-                    name.set("Dyorgio Nascimento")
-                    url.set("https://github.com/dyorgio")
+                    id.set("limn-toolkit")
+                    name.set("Limn Toolkit")
+                    email.set("limntoolkit@gmail.com")
+                    url.set("https://github.com/limn-toolkit")
                 }
             }
         }
