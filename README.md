@@ -6,7 +6,7 @@ pan-CJK that has not changed is never re-downloaded because something else did.
 
 | Artifact | Covers | Size | Version tracks |
 | --- | --- | --- | --- |
-| `limn-fonts-roboto` | Latin, Greek, Cyrillic — the toolkit's default UI family, Regular/Bold/Italic/Bold-Italic | ~1.9 MB | its own `1.x` (mixed upstream builds; see the pins) |
+| `limn-fonts-roboto` | Latin, Greek, Cyrillic — the toolkit's default UI family, Regular/Bold/Italic/Bold-Italic | ~1.5 MB | upstream `v2.138` → `2.138.x` |
 | `limn-fonts-noto-cjk` | Han + Kana + Hangul (Noto Sans CJK Regular) | ~16 MB | upstream `Sans2.004` → `2.004.x` |
 | `limn-fonts-noto-emoji` | Emoji, in colour (Noto Color Emoji) | ~10 MB | upstream `v2.057` → `2.057.x` |
 | `limn-fonts-noto-scripts` | Arabic, Hebrew, Devanagari, Thai — Regular + Bold | ~1.1 MB | its own `1.x` (four families, one pinned upstream commit) |
@@ -14,8 +14,8 @@ pan-CJK that has not changed is never re-downloaded because something else did.
 `limn-fonts-roboto` is the one that is **not** an opt-in: it backs `Font.DEFAULT_FAMILY` and the
 last-resort fallback, so the toolkit's LWJGL backend declares it as a real dependency and it
 arrives with the backend. Roboto is under the Apache License 2.0; every other face is under the
-SIL Open Font License 1.1. Each jar carries its font's licence text beside it, and each POM
-names its own licence.
+SIL Open Font License 1.1. Each jar carries its font's licence text beside it (Roboto's is the
+licence file of the release its faces come from), and each POM names its own licence.
 
 The repository's own few build files are Apache 2.0 (`LICENSE`).
 
@@ -42,11 +42,12 @@ would rather not track three version numbers.
 
 ## Where the bytes come from
 
-No font here was authored here. Each is pinned to an upstream commit and verified against a
-SHA-256 in [`scripts/fetch-fonts.sh`](scripts/fetch-fonts.sh); the committed file is
-byte-for-byte the pinned build, and CI re-verifies that on every push and before every release.
-Moving a pin means changing the commit and the digest together — that diff is the review a
-binary cannot have.
+No font here was authored here. Each is pinned to an upstream commit or release and verified
+against a SHA-256 in [`scripts/fetch-fonts.sh`](scripts/fetch-fonts.sh) — Roboto, whose upstream
+release ships its faces only inside zip assets, twice: the zip by its digest and each file in it
+by its own. The committed file is byte-for-byte the pinned build, and CI re-verifies that on
+every push and before every release. Moving a pin means changing the URL and the digest
+together — that diff is the review a binary cannot have.
 
 ## Releasing
 

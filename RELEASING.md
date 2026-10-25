@@ -10,8 +10,10 @@ publish workflow takes from the tag or the dispatch) and otherwise says `-SNAPSH
 
 The version scheme: the first two components mirror the upstream release the pin points at
 (Noto CJK `Sans2.004` → `2.004.x`), and the third is this repository's own — repackaging the
-same upstream twice is `2.004.0` and `2.004.1`. Modules that aggregate mixed or unversionable
-upstream builds (`noto-scripts`, `roboto`) version themselves plainly from `1.0.0`.
+same upstream twice is `2.004.0` and `2.004.1`. A module that aggregates upstream builds no
+single release names (`noto-scripts`: four families at one commit) versions itself plainly from
+`1.0.0`; `roboto` did too, through `1.0.2`, until its faces moved to upstream's `v2.138` as
+`2.138.0`.
 
 Nothing publishes itself: the upload stops as a staged deployment on the Central Portal, and the
 GitHub release is drafted. Central keeps what it accepts, so the last reversible moment stays a
@@ -19,9 +21,10 @@ human pressing Publish.
 
 ## Releasing
 
-1. **Move the pin and the version together, in one commit**: the new upstream commit + SHA-256
-   in `scripts/fetch-fonts.sh` (run it with `--force` to replace the bytes), and the bumped
-   entry in `versions.properties`. Let CI go green.
+1. **Move the pin and the version together, in one commit**: the new upstream commit or release
+   and its SHA-256 in `scripts/fetch-fonts.sh` (for a face taken from a zip asset, the zip's
+   digest in `ZIPS` and the file's in its entry; run it with `--force` to replace the bytes),
+   and the bumped entry in `versions.properties`. Let CI go green.
 2. **Rehearse locally** (optional, free):
    ```
    ./gradlew :limn-fonts-noto-cjk:publishAllPublicationsToBuildDirRepository -PlimnFontsVersion=2.004.1
